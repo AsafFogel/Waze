@@ -1,0 +1,116 @@
+{
+  "nodes": [
+    { "id": 1, "x": 32.0736, "y": 34.7933, "name": "Azrieli" },
+    { "id": 2, "x": 32.0715, "y": 34.7890, "name": "Sarona" },
+    { "id": 3, "x": 32.0745, "y": 34.7905, "name": "HaShalom Station" },
+    { "id": 4, "x": 32.0701, "y": 34.7832, "name": "Rothschild 1" },
+    { "id": 5, "x": 32.0710, "y": 34.7845, "name": "Rothschild 2" },
+    { "id": 6, "x": 32.0720, "y": 34.7858, "name": "Rothschild 3" },
+    { "id": 7, "x": 32.0730, "y": 34.7870, "name": "Rothschild 4" },
+    { "id": 8, "x": 32.0740, "y": 34.7882, "name": "Rothschild 5" },
+    { "id": 9, "x": 32.0750, "y": 34.7895, "name": "Rothschild 6" },
+    { "id": 10, "x": 32.0760, "y": 34.7908, "name": "Rothschild 7" },
+
+    { "id": 11, "x": 32.0690, "y": 34.7810, "name": "Allenby 1" },
+    { "id": 12, "x": 32.0700, "y": 34.7822, "name": "Allenby 2" },
+    { "id": 13, "x": 32.0710, "y": 34.7834, "name": "Allenby 3" },
+    { "id": 14, "x": 32.0720, "y": 34.7846, "name": "Allenby 4" },
+    { "id": 15, "x": 32.0730, "y": 34.7858, "name": "Allenby 5" },
+
+    { "id": 16, "x": 32.0740, "y": 34.7869, "name": "Kaplan 1" },
+    { "id": 17, "x": 32.0750, "y": 34.7880, "name": "Kaplan 2" },
+    { "id": 18, "x": 32.0760, "y": 34.7892, "name": "Kaplan 3" },
+    { "id": 19, "x": 32.0770, "y": 34.7904, "name": "Kaplan 4" },
+
+    { "id": 20, "x": 32.0680, "y": 34.7800, "name": "Begin 1" },
+    { "id": 21, "x": 32.0690, "y": 34.7815, "name": "Begin 2" },
+    { "id": 22, "x": 32.0700, "y": 34.7830, "name": "Begin 3" },
+    { "id": 23, "x": 32.0710, "y": 34.7845, "name": "Begin 4" },
+    { "id": 24, "x": 32.0720, "y": 34.7860, "name": "Begin 5" },
+    { "id": 25, "x": 32.0730, "y": 34.7875, "name": "Begin 6" },
+    { "id": 26, "x": 32.0740, "y": 34.7890, "name": "Begin 7" },
+    { "id": 27, "x": 32.0750, "y": 34.7905, "name": "Begin 8" },
+
+    { "id": 28, "x": 32.0670, "y": 34.7790, "name": "LaGuardia 1" },
+    { "id": 29, "x": 32.0680, "y": 34.7805, "name": "LaGuardia 2" },
+    { "id": 30, "x": 32.0690, "y": 34.7820, "name": "LaGuardia 3" },
+    { "id": 31, "x": 32.0700, "y": 34.7835, "name": "LaGuardia 4" },
+    { "id": 32, "x": 32.0710, "y": 34.7850, "name": "LaGuardia 5" },
+
+    { "id": 33, "x": 32.0725, "y": 34.7865, "name": "Ibn Gabirol 1" },
+    { "id": 34, "x": 32.0735, "y": 34.7880, "name": "Ibn Gabirol 2" },
+    { "id": 35, "x": 32.0745, "y": 34.7895, "name": "Ibn Gabirol 3" },
+    { "id": 36, "x": 32.0755, "y": 34.7910, "name": "Ibn Gabirol 4" },
+
+    { "id": 37, "x": 32.0765, "y": 34.7925, "name": "Arlozorov 1" },
+    { "id": 38, "x": 32.0775, "y": 34.7940, "name": "Arlozorov 2" },
+    { "id": 39, "x": 32.0785, "y": 34.7955, "name": "Arlozorov 3" },
+
+    { "id": 40, "x": 32.0795, "y": 34.7970, "name": "Namir 1" },
+    { "id": 41, "x": 32.0805, "y": 34.7985, "name": "Namir 2" },
+    { "id": 42, "x": 32.0815, "y": 34.8000, "name": "Namir 3" },
+
+    { "id": 43, "x": 32.0825, "y": 34.8015, "name": "Park 1" },
+    { "id": 44, "x": 32.0835, "y": 34.8030, "name": "Park 2" },
+    { "id": 45, "x": 32.0845, "y": 34.8045, "name": "Park 3" },
+
+    { "id": 46, "x": 32.0855, "y": 34.8060, "name": "North TLV 1" },
+    { "id": 47, "x": 32.0865, "y": 34.8075, "name": "North TLV 2" },
+    { "id": 48, "x": 32.0875, "y": 34.8090, "name": "North TLV 3" },
+    { "id": 49, "x": 32.0885, "y": 34.8105, "name": "North TLV 4" },
+    { "id": 50, "x": 32.0895, "y": 34.8120, "name": "North TLV 5" }
+  ],
+
+  "edges": [
+    { "id": 1, "from": 1, "to": 2, "length": 0.45, "speedlimit": 50 },
+    { "id": 2, "from": 2, "to": 1, "length": 0.45, "speedlimit": 50 },
+    { "id": 3, "from": 1, "to": 3, "length": 0.20, "speedlimit": 30 },
+
+    { "id": 4, "from": 4, "to": 5, "length": 0.15, "speedlimit": 40 },
+    { "id": 5, "from": 5, "to": 6, "length": 0.15, "speedlimit": 40 },
+    { "id": 6, "from": 6, "to": 7, "length": 0.15, "speedlimit": 40 },
+    { "id": 7, "from": 7, "to": 8, "length": 0.15, "speedlimit": 40 },
+    { "id": 8, "from": 8, "to": 9, "length": 0.15, "speedlimit": 40 },
+    { "id": 9, "from": 9, "to": 10, "length": 0.15, "speedlimit": 40 },
+
+    { "id": 10, "from": 11, "to": 12, "length": 0.12, "speedlimit": 35 },
+    { "id": 11, "from": 12, "to": 13, "length": 0.12, "speedlimit": 35 },
+    { "id": 12, "from": 13, "to": 14, "length": 0.12, "speedlimit": 35 },
+    { "id": 13, "from": 14, "to": 15, "length": 0.12, "speedlimit": 35 },
+
+    { "id": 14, "from": 16, "to": 17, "length": 0.10, "speedlimit": 45 },
+    { "id": 15, "from": 17, "to": 18, "length": 0.10, "speedlimit": 45 },
+    { "id": 16, "from": 18, "to": 19, "length": 0.10, "speedlimit": 45 },
+
+    { "id": 17, "from": 20, "to": 21, "length": 0.20, "speedlimit": 60 },
+    { "id": 18, "from": 21, "to": 22, "length": 0.20, "speedlimit": 60 },
+    { "id": 19, "from": 22, "to": 23, "length": 0.20, "speedlimit": 60 },
+    { "id": 20, "from": 23, "to": 24, "length": 0.20, "speedlimit": 60 },
+    { "id": 21, "from": 24, "to": 25, "length": 0.20, "speedlimit": 60 },
+    { "id": 22, "from": 25, "to": 26, "length": 0.20, "speedlimit": 60 },
+    { "id": 23, "from": 26, "to": 27, "length": 0.20, "speedlimit": 60 },
+
+    { "id": 24, "from": 28, "to": 29, "length": 0.18, "speedlimit": 50 },
+    { "id": 25, "from": 29, "to": 30, "length": 0.18, "speedlimit": 50 },
+    { "id": 26, "from": 30, "to": 31, "length": 0.18, "speedlimit": 50 },
+    { "id": 27, "from": 31, "to": 32, "length": 0.18, "speedlimit": 50 },
+
+    { "id": 28, "from": 33, "to": 34, "length": 0.14, "speedlimit": 40 },
+    { "id": 29, "from": 34, "to": 35, "length": 0.14, "speedlimit": 40 },
+    { "id": 30, "from": 35, "to": 36, "length": 0.14, "speedlimit": 40 },
+
+    { "id": 31, "from": 37, "to": 38, "length": 0.25, "speedlimit": 70 },
+    { "id": 32, "from": 38, "to": 39, "length": 0.25, "speedlimit": 70 },
+
+    { "id": 33, "from": 40, "to": 41, "length": 0.30, "speedlimit": 80 },
+    { "id": 34, "from": 41, "to": 42, "length": 0.30, "speedlimit": 80 },
+
+    { "id": 35, "from": 43, "to": 44, "length": 0.22, "speedlimit": 45 },
+    { "id": 36, "from": 44, "to": 45, "length": 0.22, "speedlimit": 45 },
+
+    { "id": 37, "from": 46, "to": 47, "length": 0.28, "speedlimit": 55 },
+    { "id": 38, "from": 47, "to": 48, "length": 0.28, "speedlimit": 55 },
+    { "id": 39, "from": 48, "to": 49, "length": 0.28, "speedlimit": 55 },
+    { "id": 40, "from": 49, "to": 50, "length": 0.28, "speedlimit": 55 }
+  ]
+}

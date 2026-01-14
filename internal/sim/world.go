@@ -156,8 +156,7 @@ func (world *World) Tick(dt float64) {
 		}
 	}
 
-	MoveCarsParallel(world.Cars, dt, world.Graph, world.EdgeDensity, world.Client, world.GetCurrentTime())
-
+MoveCarsChunked(world.Cars, dt, world.Graph, world.EdgeDensity, world.Client, world.GetCurrentTime())
 
 	for _, car := range world.Cars {
 		if car.LastRouteReq > 60 && car.State == Driving && car.ActiveRoute != nil {

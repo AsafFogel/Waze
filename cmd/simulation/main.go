@@ -24,7 +24,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	sim.StartMoveWorkers(runtime.NumCPU())
+	sim.StartChunkWorkers(runtime.NumCPU())
 
 	numCars := config.Global.Simulation.NumCars
 

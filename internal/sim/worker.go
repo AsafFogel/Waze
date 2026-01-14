@@ -6,8 +6,8 @@ import (
 	"waze/internal/types"
 )
 
-type MoveJob struct {
-	Car        *Car
+type MoveChunkJob struct {
+	Cars       []*Car
 	DeltaTime  float64
 	Graph      *graph.Graph
 	DensityMap map[int]int
@@ -15,45 +15,62 @@ type MoveJob struct {
 	Timestamp  int64
 }
 
-var moveJobQueue chan MoveJob
-var moveWg sync.WaitGroup
+var chunkJobQueue chan MoveChunkJob
+var chunkWg sync.WaitGroup
 
-func StartMoveWorkers(numWorkers int) {
-	moveJobQueue = make(chan MoveJob, 1000)
+func StartChunkWorkers(numWorkers int) {
+	chunkJobQueue = make(chan MoveChunkJob, 100)
 	for i := 0; i < numWorkers; i++ {
-		go moveWorker()
+		go chunkWorker()
 	}
 }
 
-func moveWorker() {
-	for job := range moveJobQueue {
-		select {
-		case newRoute := <-job.Car.NewRouteChan:
-			job.Car.InitRoute(newRoute, job.Graph)
-		default:
-		}
-		job.Car.Move(job.DeltaTime, job.Graph, job.DensityMap)
+func chunkWorker() {
+	for job := range chunkJobQueue {
+		reports := make([]types.TrafficReport, 0, len(job.Cars))
 
-		// שליחת דוח מיידית
-		if job.Car.State == Driving && job.Car.ActiveRoute != nil {
-			report := types.TrafficReport{
-				CarID:     job.Car.Id,
-				EdgeID:    job.Car.ActiveRoute.RouteEdges[job.Car.ActiveRoute.CurrentEdgeIndex],
-				Speed:     job.Car.CurrentSpeed,
-				Timestamp: job.Timestamp,
+		for _, car := range job.Cars {
+			select {
+			case newRoute := <-car.NewRouteChan:
+				car.InitRoute(newRoute, job.Graph)
+			default:
 			}
-			job.Client.SendTrafficBatch([]types.TrafficReport{report})
+			car.Move(job.DeltaTime, job.Graph, job.DensityMap)
+
+			if car.State == Driving && car.ActiveRoute != nil {
+				reports = append(reports, types.TrafficReport{
+					CarID:     car.Id,
+					EdgeID:    car.ActiveRoute.RouteEdges[car.ActiveRoute.CurrentEdgeIndex],
+					Speed:     car.CurrentSpeed,
+					Timestamp: job.Timestamp,
+				})
+			}
 		}
 
-		moveWg.Done()
+		if len(reports) > 0 {
+			job.Client.SendTrafficBatch(reports)
+		}
+
+		chunkWg.Done()
 	}
 }
 
-func MoveCarsParallel(cars []*Car, dt float64, g *graph.Graph, density map[int]int, client *Client, timestamp int64) {
-	moveWg.Add(len(cars))
-	for _, car := range cars {
-		moveJobQueue <- MoveJob{
-			Car:        car,
+func MoveCarsChunked(cars []*Car, dt float64, g *graph.Graph, density map[int]int, client *Client, timestamp int64) {
+	if len(cars) == 0 {
+		return
+	}
+
+	chunkSize := 100
+	numChunks := (len(cars) + chunkSize - 1) / chunkSize
+
+	chunkWg.Add(numChunks)
+
+	for i := 0; i < numChunks; i++ {
+		start := i * chunkSize
+		end := min(start+chunkSize, len(cars))
+
+		chunkJobQueue <- MoveChunkJob{
+			Cars:       cars[start:end],
 			DeltaTime:  dt,
 			Graph:      g,
 			DensityMap: density,
@@ -61,5 +78,6 @@ func MoveCarsParallel(cars []*Car, dt float64, g *graph.Graph, density map[int]i
 			Timestamp:  timestamp,
 		}
 	}
-	moveWg.Wait()
+
+	chunkWg.Wait()
 }

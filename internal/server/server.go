@@ -6,10 +6,10 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"sync"
 	"waze/internal/graph"
 	"waze/internal/types"
 )
-
 type Server struct {
 	Graph *graph.Graph
 }
@@ -21,6 +21,32 @@ func NewServer(mapFile string) *Server {
 	}
 	return &Server{Graph: g}
 }
+
+// func (s *Server) HandleTrafficBatch(w http.ResponseWriter, r *http.Request) {
+// 	if r.Method != http.MethodPost {
+// 		http.Error(w, "Only POST request allowed", http.StatusMethodNotAllowed)
+// 		return
+// 	}
+
+// 	var reports []types.TrafficReport
+// 	if err := json.NewDecoder(r.Body).Decode(&reports); err != nil {
+// 		http.Error(w, "Invalid Json", http.StatusBadRequest)
+// 		return
+// 	}
+
+// 	// NOT PARALLEL YET !!!!
+// 	count := 0
+// 	for _, report := range reports {
+// 		if edge, exists := s.Graph.Edges[report.EdgeID]; exists && report.CarID != 1 {
+// 			edge.UpdateSpeed(report.Speed)
+// 			count++
+// 		}
+// 	}
+
+// 	// fmt.Printf("Processed batch of %d reports\n", count)
+// 	w.WriteHeader(http.StatusOK)
+// }
+
 
 func (s *Server) HandleTrafficBatch(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -34,16 +60,40 @@ func (s *Server) HandleTrafficBatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// NOT PARALLEL YET !!!!
-	count := 0
-	for _, report := range reports {
-		if edge, exists := s.Graph.Edges[report.EdgeID]; exists && report.CarID != 1 {
-			edge.UpdateSpeed(report.Speed)
-			count++
-		}
+	// מקביליות בעדכון
+	numWorkers := 8
+	reportsCount := len(reports)
+	
+	if reportsCount == 0 {
+		w.WriteHeader(http.StatusOK)
+		return
 	}
 
-	// fmt.Printf("Processed batch of %d reports\n", count)
+	if reportsCount < numWorkers {
+		numWorkers = 1
+	}
+
+	chunkSize := (reportsCount + numWorkers - 1) / numWorkers
+
+	var wg sync.WaitGroup
+	wg.Add(numWorkers)
+
+	for i := 0; i < numWorkers; i++ {
+		start := i * chunkSize
+		end := min(start+chunkSize, reportsCount)
+
+		go func(startIdx, endIdx int) {
+			defer wg.Done()
+			for j := startIdx; j < endIdx; j++ {
+				report := reports[j]
+				if edge, exists := s.Graph.Edges[report.EdgeID]; exists && report.CarID != -1 {
+					edge.UpdateSpeed(report.Speed)
+				}
+			}
+		}(start, end)
+	}
+
+	wg.Wait()
 	w.WriteHeader(http.StatusOK)
 }
 

@@ -148,48 +148,8 @@ func (world *World) GenarateTrafficReports() []types.TrafficReport {
 func (world *World) Tick(dt float64) {
 	world.SimTime += dt
 
-	world.EdgeDensity = make(map[int]int)
-	for _, car := range world.Cars {
-		if car.State == Driving && car.ActiveRoute != nil {
-			edgeId := car.ActiveRoute.RouteEdges[car.ActiveRoute.CurrentEdgeIndex]
-			world.EdgeDensity[edgeId]++
-		}
-	}
-
+	world.EdgeDensity = world.calculateDensityParallel()
 	MoveCarsParallel(world.Cars, dt, world.Graph, world.EdgeDensity)
-
-	for _, car := range world.Cars {
-		if car.LastRouteReq > 60 && car.State == Driving && car.ActiveRoute != nil {
-			car.LastRouteReq = 0
-
-			currentIdx := car.ActiveRoute.CurrentEdgeIndex
-			routeLen := len(car.ActiveRoute.RouteEdges)
-
-			if currentIdx >= routeLen-1 {
-				continue
-			}
-
-			currentEdgeId := car.ActiveRoute.RouteEdges[currentIdx]
-			dstEdgeId := car.ActiveRoute.RouteEdges[routeLen-1]
-
-			nextNode := world.Graph.Edges[currentEdgeId].To
-			dstNode := world.Graph.Edges[dstEdgeId].To
-
-			oldRoute := make([]int, len(car.ActiveRoute.RouteEdges))
-			copy(oldRoute, car.ActiveRoute.RouteEdges)
-
-			go func(car *Car, src, dst int, previousRoute []int, idx int) {
-				newRoute, err := world.Client.RequestRoute(nextNode, dstNode)
-				if err != nil {
-					fmt.Printf("Car %d reroute failed: %v\n", car.Id, err)
-					return
-				}
-				if different(newRoute, oldRoute, idx) {
-					car.NewRouteChan <- newRoute
-				}
-			}(car, nextNode, dstNode, oldRoute, currentIdx)
-		}
-	}
 
 	if int(world.SimTime)%int(config.Global.Simulation.ReportInterval) == 0 {
 		reports := world.GenarateTrafficReports()
@@ -224,4 +184,53 @@ func contains(slice []int, item int) bool {
 		}
 	}
 	return false
+}
+
+func (world *World) calculateDensityParallel() map[int]int {
+	carsCount := len(world.Cars)
+	if carsCount == 0 {
+		return make(map[int]int)
+	}
+
+	numWorkers := 8
+	if carsCount < numWorkers {
+		numWorkers = 1
+	}
+
+	chunkSize := (carsCount + numWorkers - 1) / numWorkers
+
+	// כל עובד יוצר מפה מקומית
+	localMaps := make([]map[int]int, numWorkers)
+
+	var wg sync.WaitGroup
+	wg.Add(numWorkers)
+
+	for i := 0; i < numWorkers; i++ {
+		localMaps[i] = make(map[int]int)
+		start := i * chunkSize
+		end := min(start+chunkSize, carsCount)
+
+		go func(idx, startIdx, endIdx int) {
+			defer wg.Done()
+			for j := startIdx; j < endIdx; j++ {
+				car := world.Cars[j]
+				if car.State == Driving && car.ActiveRoute != nil {
+					edgeId := car.ActiveRoute.RouteEdges[car.ActiveRoute.CurrentEdgeIndex]
+					localMaps[idx][edgeId]++
+				}
+			}
+		}(i, start, end)
+	}
+
+	wg.Wait()
+
+	// מיזוג המפות
+	result := make(map[int]int)
+	for _, m := range localMaps {
+		for edgeId, count := range m {
+			result[edgeId] += count
+		}
+	}
+
+	return result
 }

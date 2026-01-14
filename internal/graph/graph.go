@@ -7,22 +7,20 @@ import (
 )
 
 type Graph struct {
-	Nodes map[int]*Node // maps from id of node to struct
-	Edges map[int]*Edge // maps from id of edge to struct
-
-	// for random sampling
+	Nodes    map[int]*Node
+	Edges    map[int]*Edge
 	NodesArr []int
-
-	// nodeId maps to an array of edges id
-	AdjList map[int][]*Edge
+	AdjList        map[int][]*Edge
+	ReverseAdjList map[int][]*Edge
 }
 
 func NewGraph() *Graph {
 	return &Graph{
-		Nodes:    make(map[int]*Node),
-		Edges:    make(map[int]*Edge),
-		NodesArr: make([]int, 0),
-		AdjList:  make(map[int][]*Edge),
+		Nodes:          make(map[int]*Node),
+		Edges:          make(map[int]*Edge),
+		NodesArr:       make([]int, 0),
+		AdjList:        make(map[int][]*Edge),
+		ReverseAdjList: make(map[int][]*Edge),
 	}
 }
 
@@ -59,25 +57,20 @@ func (g *Graph) String() string {
 
 func (g *Graph) AddNode(n *Node) {
 	g.Nodes[n.Id] = n
-
 	g.NodesArr = append(g.NodesArr, n.Id)
 }
 
 func (g *Graph) AddEdge(e *Edge) error {
-	// check for existance of source and destination nodes
 	if _, ok := g.Nodes[e.From]; !ok {
 		return fmt.Errorf("Source node %d not found", e.From)
 	}
 	if _, ok := g.Nodes[e.To]; !ok {
 		return fmt.Errorf("Destination node %d not found", e.To)
 	}
-	// add edge to the graph
 	g.Edges[e.Id] = e
-
-	// add to adjacency list
 	g.AdjList[e.From] = append(g.AdjList[e.From], e)
+	g.ReverseAdjList[e.To] = append(g.ReverseAdjList[e.To], e)
 
-	// return no error
 	return nil
 }
 

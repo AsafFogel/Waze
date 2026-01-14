@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"sync"
 	"waze/internal/graph"
 	"waze/internal/types"
 )
@@ -34,28 +35,92 @@ func (s *Server) HandleTrafficBatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// NOT PARALLEL YET !!!!
-	count := 0
-	for _, report := range reports {
-		if edge, exists := s.Graph.Edges[report.EdgeID]; exists && report.CarID != 1 {
-			edge.UpdateSpeed(report.Speed)
-			count++
-		}
+	// מקביליות בעדכון
+	numWorkers := 8
+	reportsCount := len(reports)
+
+	if reportsCount == 0 {
+		w.WriteHeader(http.StatusOK)
+		return
 	}
 
-	// fmt.Printf("Processed batch of %d reports\n", count)
+	if reportsCount < numWorkers {
+		numWorkers = 1
+	}
+
+	chunkSize := (reportsCount + numWorkers - 1) / numWorkers
+
+	var wg sync.WaitGroup
+	wg.Add(numWorkers)
+
+	for i := 0; i < numWorkers; i++ {
+		start := i * chunkSize
+		end := min(start+chunkSize, reportsCount)
+
+		go func(startIdx, endIdx int) {
+			defer wg.Done()
+			for j := startIdx; j < endIdx; j++ {
+				report := reports[j]
+				if edge, exists := s.Graph.Edges[report.EdgeID]; exists && report.CarID != -1 {
+					edge.UpdateSpeed(report.Speed)
+				}
+			}
+		}(start, end)
+	}
+
+	wg.Wait()
+
+	// שליחת עדכון ל-GUI
+	if GlobalHub != nil {
+		carPositions := s.calculateCarPositions(reports)
+		GlobalHub.BroadcastUpdate("cars", carPositions)
+	}
+
 	w.WriteHeader(http.StatusOK)
+}
+
+// חישוב מיקומי מכוניות על המפה
+func (s *Server) calculateCarPositions(reports []types.TrafficReport) []CarPosition {
+	positions := make([]CarPosition, 0, len(reports))
+
+	for _, report := range reports {
+		if report.CarID == -1 {
+			continue
+		}
+
+		edge, exists := s.Graph.Edges[report.EdgeID]
+		if !exists {
+			continue
+		}
+
+		fromNode := s.Graph.Nodes[edge.From]
+		toNode := s.Graph.Nodes[edge.To]
+
+		// נניח progress של 0.5 כברירת מחדל (אפשר לשפר בהמשך)
+		progress := 0.5
+		x := fromNode.X + (toNode.X-fromNode.X)*progress
+		y := fromNode.Y + (toNode.Y-fromNode.Y)*progress
+
+		positions = append(positions, CarPosition{
+			CarID:    report.CarID,
+			EdgeID:   report.EdgeID,
+			Progress: progress,
+			Speed:    report.Speed,
+			X:        x,
+			Y:        y,
+		})
+	}
+
+	return positions
 }
 
 func (s *Server) HandleNavigation(w http.ResponseWriter, r *http.Request) {
 	fromStr := r.URL.Query().Get("from")
 	toStr := r.URL.Query().Get("to")
 
-	// fmt.Printf("From str is: %s, To str is: %s\n", fromStr, toStr)
-
 	fromId, err1 := strconv.Atoi(fromStr)
 	toId, err2 := strconv.Atoi(toStr)
-	// fmt.Printf("From is: %d, To is: %d\n", fromId, toId)
+
 	if err1 != nil || err2 != nil {
 		http.Error(w, "Invalid 'from' or 'to' parameters", http.StatusBadRequest)
 		return

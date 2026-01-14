@@ -1,0 +1,1162 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Waze 3D Simulation</title>
+    
+    <!-- MapLibre GL JS -->
+    <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
+    <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+    
+    <!-- Three.js -->
+    <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        #sidebar {
+            width: 300px;
+            background: linear-gradient(180deg, #16213e 0%, #1a1a2e 100%);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            overflow-y: auto;
+            z-index: 100;
+            box-shadow: 4px 0 20px rgba(0,0,0,0.3);
+        }
+        
+        #sidebar h1 {
+            font-size: 1.5em;
+            color: #00d4ff;
+            border-bottom: 2px solid #00d4ff;
+            padding-bottom: 12px;
+            text-shadow: 0 0 10px rgba(0,212,255,0.3);
+        }
+        
+        .section {
+            background: rgba(15, 52, 96, 0.5);
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid rgba(0,212,255,0.2);
+        }
+        
+        .section h3 {
+            color: #00d4ff;
+            font-size: 0.9em;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .input-group {
+            margin-bottom: 12px;
+        }
+        
+        .input-group label {
+            font-size: 0.8em;
+            color: #8899aa;
+            display: block;
+            margin-bottom: 5px;
+        }
+        
+        .input-group input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid rgba(0,212,255,0.3);
+            border-radius: 8px;
+            background: rgba(0,0,0,0.3);
+            color: #fff;
+            font-size: 1em;
+            transition: all 0.3s;
+        }
+        
+        .input-group input:focus {
+            outline: none;
+            border-color: #00d4ff;
+            box-shadow: 0 0 10px rgba(0,212,255,0.3);
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 8px;
+            font-size: 0.95em;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #00d4ff, #0099cc);
+            color: #1a1a2e;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0,212,255,0.4);
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #40c057, #2f9e44);
+            color: #fff;
+        }
+        
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(64,192,87,0.4);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #e03131, #c92a2a);
+            color: #fff;
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+        
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .stat-row:last-child { border: none; }
+        
+        .stat-value {
+            color: #00d4ff;
+            font-weight: 600;
+        }
+        
+        #status {
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        #status.connected { background: rgba(64,192,87,0.2); color: #40c057; border: 1px solid #40c057; }
+        #status.disconnected { background: rgba(224,49,49,0.2); color: #e03131; border: 1px solid #e03131; }
+        #status.driving { background: rgba(0,212,255,0.2); color: #00d4ff; border: 1px solid #00d4ff; }
+        #status.arrived { background: rgba(190,75,219,0.2); color: #be4bdb; border: 1px solid #be4bdb; }
+        
+        #main-area {
+            flex: 1;
+            position: relative;
+        }
+        
+        #map-view, #drive-view {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        #drive-view { display: none; }
+        
+        #map { width: 100%; height: 100%; }
+        #three-container { width: 100%; height: 100%; }
+        
+        #view-toggle {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 50;
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #00d4ff, #0099cc);
+            color: #1a1a2e;
+            border: none;
+            border-radius: 25px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,212,255,0.4);
+            transition: all 0.3s;
+        }
+        
+        #view-toggle:hover {
+            transform: scale(1.05);
+        }
+        
+        #instructions {
+            position: absolute;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(22, 33, 62, 0.95);
+            padding: 15px 30px;
+            border-radius: 12px;
+            border: 2px solid #00d4ff;
+            z-index: 50;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+        
+        /* Dashboard overlay for drive view */
+        #dashboard-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 120px;
+            background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            padding-bottom: 20px;
+            gap: 40px;
+            z-index: 10;
+        }
+        
+        .dash-item {
+            text-align: center;
+        }
+        
+        .dash-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #00ff88;
+            text-shadow: 0 0 20px rgba(0,255,136,0.5);
+        }
+        
+        .dash-label {
+            font-size: 0.85em;
+            color: #888;
+            margin-top: 5px;
+        }
+        
+        #mini-map {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 200px;
+            height: 200px;
+            border-radius: 12px;
+            border: 2px solid #00d4ff;
+            overflow: hidden;
+            z-index: 10;
+            box-shadow: 0 5px 25px rgba(0,0,0,0.5);
+        }
+        
+        #mini-map-canvas {
+            width: 100%;
+            height: 100%;
+        }
+        
+        #turn-indicator {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 80px;
+            color: #ffcc00;
+            text-shadow: 0 0 30px rgba(255,204,0,0.8);
+            z-index: 10;
+            display: none;
+        }
+        
+        #turn-indicator.left { left: 50px; }
+        #turn-indicator.right { right: 50px; }
+        
+        #turn-text {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.7);
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 1.2em;
+            z-index: 10;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="sidebar">
+        <h1>🚗 Waze 3D</h1>
+        <div id="status" class="disconnected">מתחבר...</div>
+        
+        <div class="section">
+            <h3>📍 מסלול</h3>
+            <div class="input-group">
+                <label>נקודת התחלה</label>
+                <input type="number" id="startNode" placeholder="לחץ על המפה">
+            </div>
+            <div class="input-group">
+                <label>נקודת יעד</label>
+                <input type="number" id="endNode" placeholder="לחץ על המפה">
+            </div>
+            <button class="btn btn-primary" onclick="findRoute()">🔍 חשב מסלול</button>
+            <button class="btn btn-success" id="btnStart" onclick="startDriving()" disabled>▶️ התחל נסיעה</button>
+            <button class="btn btn-danger" onclick="resetRoute()">🔄 אפס</button>
+        </div>
+        
+        <div class="section">
+            <h3>📊 נתונים</h3>
+            <div class="stat-row">
+                <span>מרחק</span>
+                <span class="stat-value" id="distance">-</span>
+            </div>
+            <div class="stat-row">
+                <span>זמן משוער</span>
+                <span class="stat-value" id="eta">-</span>
+            </div>
+            <div class="stat-row">
+                <span>מהירות</span>
+                <span class="stat-value" id="speed">-</span>
+            </div>
+            <div class="stat-row">
+                <span>התקדמות</span>
+                <span class="stat-value" id="progress">-</span>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h3>ℹ️ מפה</h3>
+            <div class="stat-row">
+                <span>צמתים</span>
+                <span class="stat-value" id="nodeCount">0</span>
+            </div>
+            <div class="stat-row">
+                <span>כבישים</span>
+                <span class="stat-value" id="edgeCount">0</span>
+            </div>
+        </div>
+    </div>
+    
+    <div id="main-area">
+        <button id="view-toggle" onclick="toggleView()">🚗 תצוגת נהיגה</button>
+        
+        <!-- Map View (MapLibre) -->
+        <div id="map-view">
+            <div id="map"></div>
+            <div id="instructions">
+                לחץ על המפה לבחירת <span style="color:#40c057">התחלה</span> ו<span style="color:#e03131">יעד</span>
+            </div>
+        </div>
+        
+        <!-- Drive View (Three.js) -->
+        <div id="drive-view">
+            <div id="three-container"></div>
+            <div id="mini-map">
+                <canvas id="mini-map-canvas"></canvas>
+            </div>
+            <div id="turn-indicator" class="left">⬅</div>
+            <div id="turn-text">פנה שמאלה ב-200 מטר</div>
+            <div id="dashboard-overlay">
+                <div class="dash-item">
+                    <div class="dash-value" id="dashSpeed">0</div>
+                    <div class="dash-label">קמ"ש</div>
+                </div>
+                <div class="dash-item">
+                    <div class="dash-value" id="dashDist">-</div>
+                    <div class="dash-label">מטר לצומת</div>
+                </div>
+                <div class="dash-item">
+                    <div class="dash-value" id="dashProgress">0%</div>
+                    <div class="dash-label">התקדמות</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+// ============== State ==============
+const state = {
+    nodes: new Map(),
+    edges: new Map(),
+    currentView: 'map',
+    startNodeId: null,
+    endNodeId: null,
+    route: [],
+    routeEdges: [],
+    isDriving: false,
+    carPosition: { lng: 0, lat: 0 },
+    carAngle: 0,
+    carEdgeIndex: 0,
+    carEdgeProgress: 0,
+    carSpeed: 0,
+    totalDistance: 0,
+    traveledDistance: 0,
+    mapCenter: { lng: 34.945, lat: 32.0 }
+};
+
+// ============== MapLibre Setup ==============
+let map;
+
+function initMap() {
+    map = new maplibregl.Map({
+        container: 'map',
+        style: {
+            version: 8,
+            sources: {
+                'osm': {
+                    type: 'raster',
+                    tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+                    tileSize: 256,
+                    attribution: '© OpenStreetMap'
+                }
+            },
+            layers: [{
+                id: 'osm',
+                type: 'raster',
+                source: 'osm'
+            }]
+        },
+        center: [state.mapCenter.lng, state.mapCenter.lat],
+        zoom: 15
+    });
+    
+    map.on('load', () => {
+        // Add empty sources for our data
+        map.addSource('edges', {
+            type: 'geojson',
+            data: { type: 'FeatureCollection', features: [] }
+        });
+        
+        map.addSource('route', {
+            type: 'geojson',
+            data: { type: 'FeatureCollection', features: [] }
+        });
+        
+        map.addSource('traveled', {
+            type: 'geojson',
+            data: { type: 'FeatureCollection', features: [] }
+        });
+        
+        map.addSource('nodes', {
+            type: 'geojson',
+            data: { type: 'FeatureCollection', features: [] }
+        });
+        
+        map.addSource('car', {
+            type: 'geojson',
+            data: { type: 'FeatureCollection', features: [] }
+        });
+        
+        // Add layers
+        map.addLayer({
+            id: 'edges-layer',
+            type: 'line',
+            source: 'edges',
+            paint: {
+                'line-color': '#4a5568',
+                'line-width': 4,
+                'line-opacity': 0.8
+            }
+        });
+        
+        map.addLayer({
+            id: 'route-layer',
+            type: 'line',
+            source: 'route',
+            paint: {
+                'line-color': '#ffd43b',
+                'line-width': 6,
+                'line-opacity': 0.9
+            }
+        });
+        
+        map.addLayer({
+            id: 'traveled-layer',
+            type: 'line',
+            source: 'traveled',
+            paint: {
+                'line-color': '#40c057',
+                'line-width': 6,
+                'line-opacity': 0.9
+            }
+        });
+        
+        map.addLayer({
+            id: 'nodes-layer',
+            type: 'circle',
+            source: 'nodes',
+            paint: {
+                'circle-radius': 6,
+                'circle-color': ['get', 'color'],
+                'circle-stroke-width': 2,
+                'circle-stroke-color': '#fff'
+            }
+        });
+        
+        map.addLayer({
+            id: 'car-layer',
+            type: 'circle',
+            source: 'car',
+            paint: {
+                'circle-radius': 12,
+                'circle-color': '#00d4ff',
+                'circle-stroke-width': 3,
+                'circle-stroke-color': '#fff'
+            }
+        });
+    });
+    
+    // Click handler for selecting nodes
+    map.on('click', (e) => {
+        if (state.isDriving) return;
+        
+        const nearestNode = findNearestNodeToPoint(e.lngLat.lng, e.lngLat.lat);
+        if (!nearestNode) return;
+        
+        if (!state.startNodeId) {
+            state.startNodeId = nearestNode.id;
+            document.getElementById('startNode').value = nearestNode.id;
+        } else if (!state.endNodeId) {
+            state.endNodeId = nearestNode.id;
+            document.getElementById('endNode').value = nearestNode.id;
+            document.getElementById('instructions').style.display = 'none';
+        }
+        
+        updateMapData();
+    });
+}
+
+function findNearestNodeToPoint(lng, lat) {
+    let nearest = null;
+    let minDist = Infinity;
+    
+    for (const node of state.nodes.values()) {
+        const dist = Math.hypot(node.x - lng, node.y - lat);
+        if (dist < minDist && dist < 0.002) {
+            minDist = dist;
+            nearest = node;
+        }
+    }
+    
+    return nearest;
+}
+
+function updateMapData() {
+    if (!map || !map.getSource('edges')) return;
+    
+    // Update edges
+    const edgeFeatures = [];
+    for (const edge of state.edges.values()) {
+        edgeFeatures.push({
+            type: 'Feature',
+            geometry: {
+                type: 'LineString',
+                coordinates: [[edge.from_x, edge.from_y], [edge.to_x, edge.to_y]]
+            }
+        });
+    }
+    map.getSource('edges').setData({ type: 'FeatureCollection', features: edgeFeatures });
+    
+    // Update nodes
+    const nodeFeatures = [];
+    for (const node of state.nodes.values()) {
+        let color = '#4a5568';
+        if (node.id === state.startNodeId) color = '#40c057';
+        else if (node.id === state.endNodeId) color = '#e03131';
+        
+        nodeFeatures.push({
+            type: 'Feature',
+            geometry: { type: 'Point', coordinates: [node.x, node.y] },
+            properties: { color, id: node.id }
+        });
+    }
+    map.getSource('nodes').setData({ type: 'FeatureCollection', features: nodeFeatures });
+    
+    // Update route
+    if (state.routeEdges.length > 0) {
+        const routeCoords = [];
+        for (const edge of state.routeEdges) {
+            if (routeCoords.length === 0) routeCoords.push([edge.from_x, edge.from_y]);
+            routeCoords.push([edge.to_x, edge.to_y]);
+        }
+        map.getSource('route').setData({
+            type: 'FeatureCollection',
+            features: [{
+                type: 'Feature',
+                geometry: { type: 'LineString', coordinates: routeCoords }
+            }]
+        });
+    } else {
+        map.getSource('route').setData({ type: 'FeatureCollection', features: [] });
+    }
+    
+    // Update car position
+    if (state.isDriving) {
+        map.getSource('car').setData({
+            type: 'FeatureCollection',
+            features: [{
+                type: 'Feature',
+                geometry: { type: 'Point', coordinates: [state.carPosition.lng, state.carPosition.lat] }
+            }]
+        });
+    }
+}
+
+// ============== Three.js Setup ==============
+let scene, camera, renderer, roadGroup;
+
+function initThreeJS() {
+    const container = document.getElementById('three-container');
+    
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x1a1a2e);
+    scene.fog = new THREE.Fog(0x1a1a2e, 50, 500);
+    
+    camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+    camera.position.set(0, 3, 0);
+    camera.lookAt(0, 2, -50);
+    
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.shadowMap.enabled = true;
+    container.appendChild(renderer.domElement);
+    
+    // Lighting
+    const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+    scene.add(ambientLight);
+    
+    const moonLight = new THREE.DirectionalLight(0x8888ff, 0.3);
+    moonLight.position.set(50, 100, 50);
+    scene.add(moonLight);
+    
+    // Ground
+    const groundGeometry = new THREE.PlaneGeometry(2000, 2000);
+    const groundMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0x1a3d1a,
+        roughness: 0.9
+    });
+    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -0.1;
+    scene.add(ground);
+    
+    // Starfield
+    const starGeometry = new THREE.BufferGeometry();
+    const starCount = 2000;
+    const starPositions = new Float32Array(starCount * 3);
+    for (let i = 0; i < starCount * 3; i += 3) {
+        starPositions[i] = (Math.random() - 0.5) * 1000;
+        starPositions[i + 1] = Math.random() * 200 + 50;
+        starPositions[i + 2] = (Math.random() - 0.5) * 1000;
+    }
+    starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+    const starMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 1 });
+    const stars = new THREE.Points(starGeometry, starMaterial);
+    scene.add(stars);
+    
+    // Road group
+    roadGroup = new THREE.Group();
+    scene.add(roadGroup);
+    
+    window.addEventListener('resize', onWindowResize);
+}
+
+function onWindowResize() {
+    const container = document.getElementById('three-container');
+    camera.aspect = container.clientWidth / container.clientHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(container.clientWidth, container.clientHeight);
+}
+
+function createRoadSegment(fromX, fromZ, toX, toZ, isMyRoute, isTraveled) {
+    const dx = toX - fromX;
+    const dz = toZ - fromZ;
+    const length = Math.sqrt(dx * dx + dz * dz);
+    const angle = Math.atan2(dx, dz);
+    
+    const roadWidth = isMyRoute ? 8 : 5;
+    const roadGeometry = new THREE.PlaneGeometry(roadWidth, length);
+    
+    let color = 0x333333;
+    if (isTraveled) color = 0x40c057;
+    else if (isMyRoute) color = 0xffd43b;
+    
+    const roadMaterial = new THREE.MeshStandardMaterial({ 
+        color,
+        roughness: 0.8,
+        side: THREE.DoubleSide
+    });
+    
+    const road = new THREE.Mesh(roadGeometry, roadMaterial);
+    road.rotation.x = -Math.PI / 2;
+    road.rotation.z = angle;
+    road.position.set((fromX + toX) / 2, 0.01, (fromZ + toZ) / 2);
+    
+    return road;
+}
+
+function updateThreeScene() {
+    if (!roadGroup) return;
+    
+    // Clear old roads
+    while (roadGroup.children.length > 0) {
+        roadGroup.remove(roadGroup.children[0]);
+    }
+    
+    const carX = state.carPosition.lng;
+    const carY = state.carPosition.lat;
+    const viewAngle = state.carAngle;
+    
+    // Scale factor: convert geo coords to 3D world coords
+    const scale = 50000;
+    
+    // Draw nearby edges
+    for (const edge of state.edges.values()) {
+        const midX = (edge.from_x + edge.to_x) / 2;
+        const midY = (edge.from_y + edge.to_y) / 2;
+        const dist = Math.hypot(midX - carX, midY - carY);
+        
+        if (dist > 0.005) continue; // Skip far edges
+        
+        // Convert to local coords relative to car
+        const localFromX = (edge.from_x - carX) * scale;
+        const localFromZ = -(edge.from_y - carY) * scale;
+        const localToX = (edge.to_x - carX) * scale;
+        const localToZ = -(edge.to_y - carY) * scale;
+        
+        // Rotate based on car direction
+        const cos = Math.cos(-viewAngle);
+        const sin = Math.sin(-viewAngle);
+        
+        const rotFromX = localFromX * cos - localFromZ * sin;
+        const rotFromZ = localFromX * sin + localFromZ * cos;
+        const rotToX = localToX * cos - localToZ * sin;
+        const rotToZ = localToX * sin + localToZ * cos;
+        
+        const isMyRoute = state.route.includes(edge.id);
+        const edgeIndex = state.routeEdges.findIndex(e => e.id === edge.id);
+        const isTraveled = edgeIndex !== -1 && edgeIndex < state.carEdgeIndex;
+        
+        const road = createRoadSegment(rotFromX, rotFromZ, rotToX, rotToZ, isMyRoute, isTraveled);
+        roadGroup.add(road);
+    }
+    
+    // Add road markings for current route
+    if (state.routeEdges.length > 0) {
+        // Center line dashes
+        const dashMaterial = new THREE.MeshBasicMaterial({ color: 0xffcc00 });
+        
+        for (let i = state.carEdgeIndex; i < Math.min(state.carEdgeIndex + 5, state.routeEdges.length); i++) {
+            const edge = state.routeEdges[i];
+            const localFromX = (edge.from_x - carX) * scale;
+            const localFromZ = -(edge.from_y - carY) * scale;
+            const localToX = (edge.to_x - carX) * scale;
+            const localToZ = -(edge.to_y - carY) * scale;
+            
+            const cos = Math.cos(-viewAngle);
+            const sin = Math.sin(-viewAngle);
+            
+            const rotFromX = localFromX * cos - localFromZ * sin;
+            const rotFromZ = localFromX * sin + localFromZ * cos;
+            const rotToX = localToX * cos - localToZ * sin;
+            const rotToZ = localToX * sin + localToZ * cos;
+            
+            // Only draw what's in front
+            if (rotFromZ > 5 || rotToZ > 5) continue;
+            
+            const dx = rotToX - rotFromX;
+            const dz = rotToZ - rotFromZ;
+            const len = Math.sqrt(dx * dx + dz * dz);
+            const numDashes = Math.floor(len / 4);
+            
+            for (let j = 0; j < numDashes; j++) {
+                const t = (j + 0.5) / numDashes;
+                const x = rotFromX + dx * t;
+                const z = rotFromZ + dz * t;
+                
+                if (z > 0) continue; // Behind camera
+                
+                const dashGeom = new THREE.BoxGeometry(0.3, 0.05, 2);
+                const dash = new THREE.Mesh(dashGeom, dashMaterial);
+                dash.position.set(x, 0.02, z);
+                dash.rotation.y = Math.atan2(dx, dz);
+                roadGroup.add(dash);
+            }
+        }
+    }
+}
+
+function animateThree() {
+    if (state.currentView !== 'drive') return;
+    
+    updateThreeScene();
+    renderer.render(scene, camera);
+    requestAnimationFrame(animateThree);
+}
+
+// ============== Mini Map ==============
+const miniMapCanvas = document.getElementById('mini-map-canvas');
+const miniCtx = miniMapCanvas.getContext('2d');
+
+function renderMiniMap() {
+    if (!miniMapCanvas) return;
+    
+    miniMapCanvas.width = 200;
+    miniMapCanvas.height = 200;
+    
+    miniCtx.fillStyle = '#0a0a1a';
+    miniCtx.fillRect(0, 0, 200, 200);
+    
+    if (state.nodes.size === 0) return;
+    
+    // Calculate bounds
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (const n of state.nodes.values()) {
+        minX = Math.min(minX, n.x);
+        maxX = Math.max(maxX, n.x);
+        minY = Math.min(minY, n.y);
+        maxY = Math.max(maxY, n.y);
+    }
+    
+    const pad = 15;
+    const scale = Math.min((200 - 2*pad) / (maxX - minX), (200 - 2*pad) / (maxY - minY));
+    const offsetX = pad + ((200 - 2*pad) - (maxX - minX) * scale) / 2;
+    const offsetY = pad + ((200 - 2*pad) - (maxY - minY) * scale) / 2;
+    
+    const toScreen = (x, y) => ({
+        x: (x - minX) * scale + offsetX,
+        y: (maxY - y) * scale + offsetY
+    });
+    
+    // Draw edges
+    miniCtx.strokeStyle = '#4a5568';
+    miniCtx.lineWidth = 1;
+    for (const e of state.edges.values()) {
+        const from = toScreen(e.from_x, e.from_y);
+        const to = toScreen(e.to_x, e.to_y);
+        miniCtx.beginPath();
+        miniCtx.moveTo(from.x, from.y);
+        miniCtx.lineTo(to.x, to.y);
+        miniCtx.stroke();
+    }
+    
+    // Draw route
+    if (state.routeEdges.length > 0) {
+        miniCtx.strokeStyle = '#ffd43b';
+        miniCtx.lineWidth = 3;
+        miniCtx.beginPath();
+        let first = true;
+        for (const e of state.routeEdges) {
+            const from = toScreen(e.from_x, e.from_y);
+            const to = toScreen(e.to_x, e.to_y);
+            if (first) { miniCtx.moveTo(from.x, from.y); first = false; }
+            miniCtx.lineTo(to.x, to.y);
+        }
+        miniCtx.stroke();
+    }
+    
+    // Draw car
+    if (state.isDriving) {
+        const pos = toScreen(state.carPosition.lng, state.carPosition.lat);
+        miniCtx.fillStyle = '#00d4ff';
+        miniCtx.beginPath();
+        miniCtx.arc(pos.x, pos.y, 6, 0, Math.PI * 2);
+        miniCtx.fill();
+        miniCtx.strokeStyle = '#fff';
+        miniCtx.lineWidth = 2;
+        miniCtx.stroke();
+    }
+}
+
+// ============== WebSocket ==============
+function connect() {
+    const ws = new WebSocket(`ws://${window.location.host}/ws`);
+    
+    ws.onopen = () => {
+        document.getElementById('status').className = 'connected';
+        document.getElementById('status').textContent = 'מחובר';
+    };
+    
+    ws.onclose = () => {
+        document.getElementById('status').className = 'disconnected';
+        document.getElementById('status').textContent = 'מתחבר...';
+        setTimeout(connect, 2000);
+    };
+    
+    ws.onmessage = (e) => {
+        const msg = JSON.parse(e.data);
+        if (msg.type === 'init') {
+            initGraphData(msg.data);
+        }
+    };
+}
+
+function initGraphData(data) {
+    state.nodes.clear();
+    state.edges.clear();
+    
+    for (const n of data.nodes) {
+        state.nodes.set(n.id, n);
+    }
+    
+    for (const e of data.edges) {
+        state.edges.set(e.id, e);
+    }
+    
+    document.getElementById('nodeCount').textContent = state.nodes.size;
+    document.getElementById('edgeCount').textContent = state.edges.size;
+    
+    // Center map on data
+    if (data.nodes.length > 0) {
+        const sumX = data.nodes.reduce((s, n) => s + n.x, 0);
+        const sumY = data.nodes.reduce((s, n) => s + n.y, 0);
+        state.mapCenter.lng = sumX / data.nodes.length;
+        state.mapCenter.lat = sumY / data.nodes.length;
+        
+        if (map) {
+            map.setCenter([state.mapCenter.lng, state.mapCenter.lat]);
+        }
+    }
+    
+    updateMapData();
+}
+
+// ============== Route & Driving ==============
+async function findRoute() {
+    const startId = parseInt(document.getElementById('startNode').value);
+    const endId = parseInt(document.getElementById('endNode').value);
+    
+    if (!startId || !endId) {
+        alert('בחר התחלה ויעד');
+        return;
+    }
+    
+    state.startNodeId = startId;
+    state.endNodeId = endId;
+    
+    try {
+        const res = await fetch(`/api/navigate?from=${startId}&to=${endId}`);
+        if (!res.ok) throw new Error('לא נמצא מסלול');
+        const data = await res.json();
+        
+        state.route = data.route;
+        state.routeEdges = data.route.map(id => state.edges.get(id)).filter(e => e);
+        state.totalDistance = data.distance;
+        
+        document.getElementById('distance').textContent = (data.distance * 1000).toFixed(0) + ' מ\'';
+        document.getElementById('eta').textContent = data.eta.toFixed(1) + ' דק\'';
+        document.getElementById('btnStart').disabled = false;
+        
+        updateMapData();
+        
+        // Fit map to route
+        if (state.routeEdges.length > 0 && map) {
+            const coords = state.routeEdges.flatMap(e => [[e.from_x, e.from_y], [e.to_x, e.to_y]]);
+            const bounds = coords.reduce((b, c) => b.extend(c), new maplibregl.LngLatBounds(coords[0], coords[0]));
+            map.fitBounds(bounds, { padding: 50 });
+        }
+    } catch (err) {
+        alert(err.message);
+    }
+}
+
+function startDriving() {
+    if (state.routeEdges.length === 0) return;
+    
+    state.isDriving = true;
+    state.carEdgeIndex = 0;
+    state.carEdgeProgress = 0;
+    state.traveledDistance = 0;
+    
+    const firstEdge = state.routeEdges[0];
+    state.carPosition = { lng: firstEdge.from_x, lat: firstEdge.from_y };
+    state.carAngle = Math.atan2(
+        firstEdge.to_x - firstEdge.from_x,
+        firstEdge.to_y - firstEdge.from_y
+    );
+    state.carSpeed = firstEdge.speed_limit;
+    
+    document.getElementById('btnStart').disabled = true;
+    document.getElementById('instructions').style.display = 'none';
+    document.getElementById('status').className = 'driving';
+    document.getElementById('status').textContent = '🚗 בנסיעה...';
+    
+    // Switch to drive view
+    if (state.currentView === 'map') toggleView();
+    
+    lastTime = 0;
+    requestAnimationFrame(driveTick);
+}
+
+let lastTime = 0;
+function driveTick(ts) {
+    if (!state.isDriving) return;
+    
+    const dt = lastTime ? (ts - lastTime) / 1000 : 0.016;
+    lastTime = ts;
+    
+    const edge = state.routeEdges[state.carEdgeIndex];
+    if (!edge) {
+        arrive();
+        return;
+    }
+    
+    // Speed with variation
+    state.carSpeed = edge.speed_limit //* (0.8 + Math.random() * 0.1);
+    
+    // Move
+    const dist = (state.carSpeed * dt) / 3600;
+    state.carEdgeProgress += dist;
+    state.traveledDistance += dist;
+    
+    // Next edge?
+    if (state.carEdgeProgress >= edge.length) {
+        state.carEdgeProgress = 0;
+        state.carEdgeIndex++;
+        if (state.carEdgeIndex >= state.routeEdges.length) {
+            arrive();
+            return;
+        }
+    }
+    
+    // Update position
+    const cur = state.routeEdges[state.carEdgeIndex];
+    if (cur) {
+        const p = state.carEdgeProgress / cur.length;
+        state.carPosition.lng = cur.from_x + (cur.to_x - cur.from_x) * p;
+        state.carPosition.lat = cur.from_y + (cur.to_y - cur.from_y) * p;
+        state.carAngle = Math.atan2(cur.to_x - cur.from_x, cur.to_y - cur.from_y);
+    }
+    
+    // Update UI
+    const pct = Math.round((state.carEdgeIndex / state.routeEdges.length) * 100);
+    const remaining = Math.max(0, (state.totalDistance - state.traveledDistance) * 1000);
+    
+    document.getElementById('speed').textContent = Math.round(state.carSpeed) + ' קמ"ש';
+    document.getElementById('progress').textContent = pct + '%';
+    document.getElementById('dashSpeed').textContent = Math.round(state.carSpeed);
+    document.getElementById('dashDist').textContent = remaining.toFixed(0);
+    document.getElementById('dashProgress').textContent = pct + '%';
+    
+    // Turn indicator
+    updateTurnIndicator();
+    
+    // Update map
+    if (state.currentView === 'map') {
+        updateMapData();
+        map.setCenter([state.carPosition.lng, state.carPosition.lat]);
+    }
+    
+    renderMiniMap();
+    requestAnimationFrame(driveTick);
+}
+
+function updateTurnIndicator() {
+    const turnEl = document.getElementById('turn-indicator');
+    const textEl = document.getElementById('turn-text');
+    
+    if (state.carEdgeIndex >= state.routeEdges.length - 1) {
+        turnEl.style.display = 'none';
+        textEl.style.display = 'none';
+        return;
+    }
+    
+    const cur = state.routeEdges[state.carEdgeIndex];
+    const next = state.routeEdges[state.carEdgeIndex + 1];
+    
+    const curAngle = Math.atan2(cur.to_y - cur.from_y, cur.to_x - cur.from_x);
+    const nextAngle = Math.atan2(next.to_y - next.from_y, next.to_x - next.from_x);
+    let turn = nextAngle - curAngle;
+    while (turn > Math.PI) turn -= 2 * Math.PI;
+    while (turn < -Math.PI) turn += 2 * Math.PI;
+    
+    const progress = state.carEdgeProgress / cur.length;
+    const distToTurn = (cur.length - state.carEdgeProgress) * 1000;
+    
+    if (Math.abs(turn) > 0.3 && progress > 0.3) {
+        turnEl.style.display = 'block';
+        textEl.style.display = 'block';
+        
+        if (turn > 0) {
+            turnEl.textContent = '⬅';
+            turnEl.className = 'left';
+            textEl.textContent = `פנה שמאלה ב-${distToTurn.toFixed(0)} מטר`;
+        } else {
+            turnEl.textContent = '➡';
+            turnEl.className = 'right';
+            textEl.textContent = `פנה ימינה ב-${distToTurn.toFixed(0)} מטר`;
+        }
+    } else {
+        turnEl.style.display = 'none';
+        textEl.style.display = 'none';
+    }
+}
+
+function arrive() {
+    state.isDriving = false;
+    document.getElementById('btnStart').disabled = true;
+    document.getElementById('progress').textContent = '100%';
+    document.getElementById('dashProgress').textContent = '100%';
+    document.getElementById('status').className = 'arrived';
+    document.getElementById('status').textContent = '🎉 הגעת ליעד!';
+    document.getElementById('turn-indicator').style.display = 'none';
+    document.getElementById('turn-text').style.display = 'none';
+}
+
+function resetRoute() {
+    state.isDriving = false;
+    state.route = [];
+    state.routeEdges = [];
+    state.startNodeId = null;
+    state.endNodeId = null;
+    state.carEdgeIndex = 0;
+    lastTime = 0;
+    
+    document.getElementById('startNode').value = '';
+    document.getElementById('endNode').value = '';
+    document.getElementById('distance').textContent = '-';
+    document.getElementById('eta').textContent = '-';
+    document.getElementById('speed').textContent = '-';
+    document.getElementById('progress').textContent = '-';
+    document.getElementById('btnStart').disabled = true;
+    document.getElementById('instructions').style.display = 'block';
+    document.getElementById('status').className = 'connected';
+    document.getElementById('status').textContent = 'מחובר';
+    
+    if (state.currentView === 'drive') toggleView();
+    updateMapData();
+}
+
+function toggleView() {
+    const mapView = document.getElementById('map-view');
+    const driveView = document.getElementById('drive-view');
+    const btn = document.getElementById('view-toggle');
+    
+    if (state.currentView === 'map') {
+        state.currentView = 'drive';
+        mapView.style.display = 'none';
+        driveView.style.display = 'block';
+        btn.textContent = '🗺️ תצוגת מפה';
+        animateThree();
+    } else {
+        state.currentView = 'map';
+        mapView.style.display = 'block';
+        driveView.style.display = 'none';
+        btn.textContent = '🚗 תצוגת נהיגה';
+        updateMapData();
+    }
+}
+
+// ============== Init ==============
+document.addEventListener('DOMContentLoaded', () => {
+    initMap();
+    initThreeJS();
+    connect();
+});
+</script>
+</body>
+</html>
